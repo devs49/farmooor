@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farmooor</title>
+
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+  <style>
+    .top-level {
+      position: relative;
+    }
+
+    /* Apply styles to logo container */
+    .logo-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    /* Apply styles to logo text */
+    .logo-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      font-size: 5rem;
+      text-transform: uppercase;
+
+      /* Apply text stroke using text-shadow */
+      text-shadow: -1px -1px 0 #fff,  
+                    1px -1px 0 #fff,
+                   -1px  1px 0 #fff,
+                    1px  1px 0 #fff;
+    }
+
+    /* Apply styles to logo image */
+    .logo-image {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    #connectedAddress {
+      position: absolute;
+      top: 20px; /* Adjust the top position as needed */
+      left: 20px; /* Adjust the left position as needed */
+      z-index: 9999; /* Ensure the address stays above other content */
+    }
+  </style>
+</head>
+<body>
+  <div class="top-level">
+    <div class="container text-center mb-5">
+      <div class="logo-container w-50">
+        <h1 class="logo-text">Farmooor</h1>
+        <img class="logo-image" src="/farmooor-logo.jpg" alt="logo" />
+      </div>
+
+      <!-- Add a span element for the connected address -->
+      <div id="connectedAddress"></div>
+
+      <p class="mb-5">Simple tools to farm yield, points, airdrops, and more.</p>
+
+      <h3>deployContract</h3>
+      <button class="btn btn-primary mb-5" type="button" onclick="callDeployContract()">Submit</button>
+
+      <h3>loadContract</h3>
+      <button class="btn btn-primary mb-3" type="button" onclick="loadLastContract()">Load</button>
+      <!-- Add a container to display the last contract -->
+      <div id="lastContractContainer" class="mb-5"></div>
+
+      <h3>getOwner</h3>
+      <button class="btn btn-primary mb-3" onclick="getOwner()">Show</button>
+      <!-- Add a container to display the result -->
+      <div id="ownerAddress" class="mb-5"></div>
+
+      <h3>getContractBalance</h3>
+      <button class="btn btn-primary mb-3" type="button" onclick="getContractBalance()">Show</button>
+      <!-- Add a container to display the result -->
+      <div id="contractBalance" class="mb-5"></div>
+
+      <h3>multiSend</h3>
+      <form id="multiSendForm" class="mb-5">
+        <label class="form-label">Recipient Addresses (comma-separated): </label>
+        <input id="recipientAddresses" class="form-control text-center mb-3" type="text" required>
+        <label class="form-label">Amounts (comma-separated): </label>
+        <input id="amounts" class="form-control text-center mb-3" type="text" required>
+        <button class="btn btn-primary" type="button" onclick="callMultiSend()">Submit</button>
+      </form>
+
+      <h3>upsertClaim</h3>
+      <form id="upsertClaimForm" class="mb-5">
+        <label class="form-label">Claimer Address: </label>
+        <input id="upsertClaimerAddress" class="form-control text-center mb-3" type="text" required>
+        <label class="form-label">Claimable Amount: </label>
+        <input id="upsertClaimableAmount" class="form-control text-center mb-3" type="number" required>
+        <button class="btn btn-primary" type="button" onclick="callUpsertClaim()">Submit</button>
+      </form>
+
+      <h3>withdrawBalance</h3>
+      <button class="btn btn-primary mb-5" type="button" onclick="callWithdrawBalance()">Submit</button>
+
+      <h3>withdrawClaim</h3>
+      <button class="btn btn-primary mb-5" type="button" onclick="callWithdrawClaim()">Submit</button>
+
+      <h3>loadAllClaims</h3>
+      <button class="btn btn-primary mb-5" onclick="loadAllClaims()">Show</button>
+      <!-- Initially hide the table -->
+      <div id="claimsTableContainer" class="mb-5" style="display: none;">
+        <div id="claimsTable"></div>
+      </div>
+
+      <h3>loadClaim</h3>
+      <form id="getClaimForm" class="mb-3">
+        <label class="form-label">Claimer Address: </label>
+        <input id="loadClaimerAddress" class="form-control text-center text-center mb-3" type="text" required>
+        <button class="btn btn-primary" type="button" onclick="callGetClaim()">Show</button>
+      </form>
+      <!-- Add a container to display the result -->
+      <div id="claimResult" class="mb-5"></div>
+
+      <script src="https://cdn.jsdelivr.net/npm/web3@4.4.0/dist/web3.min.js"></script>
+      <script>
+        // Connect to MetaMask or another injected web3 provider
+        if (window.ethereum) {
+          window.web3 = new Web3(window.ethereum);
+          window.ethereum.enable();
+
+          window.ethereum
+            .request({ method: 'eth_chainId' })
+            .then(chainId => {
+              console.log('Connected to chain with ID:', chainId);
+            });
+
+          window.ethereum
+            .request({ method: 'eth_requestAccounts' })
+            .then(accounts => {
+              const connectedAddress = accounts[0];
+              // Display the connected address in the span element
+              document.getElementById('connectedAddress').innerHTML = `Connected:<br />${truncateAddress(connectedAddress)}`;
+            });
+        } else if (window.web3) {
+          window.web3 = new Web3(window.web3.currentProvider);
+        } else {
+          console.error('No web3 provider detected. Please install MetaMask or use a browser with Ethereum support.');
+        }
+
+        const factoryContractAbi = [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "deployer",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "contractAddress",
+          "type": "address"
+        }
+      ],
+      "name": "ContractDeployed",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "allUserContracts",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "allUsers",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "deployContract",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllUserContracts",
+      "outputs": [
+        {
+          "internalType": "address[][]",
+          "name": "",
+          "type": "address[][]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllUsers",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "getUserContracts",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+        ];
+        const factoryContractAddress = 'TODO';
+        const factoryContract = new web3.eth.Contract(factoryContractAbi, factoryContractAddress);
+
+        const contractAbi = [
+      {
+          "inputs": [
+              {
+                  "internalType": "address",
+                  "name": "_owner",
+                  "type": "address"
+              }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+      },
+      {
+          "inputs": [],
+          "name": "BLAST",
+          "outputs": [
+              {
+                  "internalType": "contract IBlast",
+                  "name": "",
+                  "type": "address"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+              }
+          ],
+          "name": "claimerAddresses",
+          "outputs": [
+              {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+              }
+          ],
+          "name": "claimers",
+          "outputs": [
+              {
+                  "internalType": "address payable",
+                  "name": "claimerAddress",
+                  "type": "address"
+              },
+              {
+                  "internalType": "uint256",
+                  "name": "claimableAmount",
+                  "type": "uint256"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "getAllClaims",
+          "outputs": [
+              {
+                  "internalType": "address[]",
+                  "name": "",
+                  "type": "address[]"
+              },
+              {
+                  "internalType": "uint256[]",
+                  "name": "",
+                  "type": "uint256[]"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address",
+                  "name": "_claimer",
+                  "type": "address"
+              }
+          ],
+          "name": "getClaim",
+          "outputs": [
+              {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "getContractBalance",
+          "outputs": [
+              {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "getOwner",
+          "outputs": [
+              {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address[]",
+                  "name": "_recipients",
+                  "type": "address[]"
+              },
+              {
+                  "internalType": "uint256[]",
+                  "name": "_amounts",
+                  "type": "uint256[]"
+              }
+          ],
+          "name": "multiSend",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+              {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+              }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address",
+                  "name": "_tokenAddress",
+                  "type": "address"
+              },
+              {
+                  "internalType": "address",
+                  "name": "_to",
+                  "type": "address"
+              },
+              {
+                  "internalType": "uint256",
+                  "name": "_amount",
+                  "type": "uint256"
+              }
+          ],
+          "name": "transferERC20",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address",
+                  "name": "_tokenAddress",
+                  "type": "address"
+              },
+              {
+                  "internalType": "address",
+                  "name": "_to",
+                  "type": "address"
+              },
+              {
+                  "internalType": "uint256",
+                  "name": "_tokenId",
+                  "type": "uint256"
+              }
+          ],
+          "name": "transferERC721",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "inputs": [
+              {
+                  "internalType": "address payable",
+                  "name": "_claimer",
+                  "type": "address"
+              },
+              {
+                  "internalType": "uint256",
+                  "name": "_claimableAmount",
+                  "type": "uint256"
+              }
+          ],
+          "name": "upsertClaim",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "withdrawBalance",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "inputs": [],
+          "name": "withdrawClaim",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+      },
+      {
+          "stateMutability": "payable",
+          "type": "receive"
+      }
+        ];
+        let CONTRACT_ADDRESS;
+        let CONTRACT;
+
+        async function callDeployContract() {
+          try {
+            const gasEstimation = await estimateGas(factoryContractAddress, factoryContract, 'deployContract');
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const transactionObject = {
+              from: account,
+              to: factoryContractAddress,
+              gas: gasEstimation,
+              data: factoryContract.methods.deployContract().encodeABI(),
+            };
+
+            const receipt = await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [transactionObject],
+            });
+
+            console.log('Deploy Contract transaction sent. Receipt:', receipt);
+          } catch (error) {
+            console.error('Error sending Deploy Contract transaction:', error);
+          }
+        }
+
+        async function loadLastContract() {
+          try {
+              const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+              const account = accounts[0];
+
+              const userContracts = await factoryContract.methods.getUserContracts(account).call();
+              const lastContract = userContracts[userContracts.length - 1]; // Get the last contract from the array
+
+              CONTRACT_ADDRESS = lastContract;
+              CONTRACT = new web3.eth.Contract(contractAbi, CONTRACT_ADDRESS);
+
+              // Display the last contract address
+              document.getElementById('lastContractContainer').innerHTML = `Loaded Contract: ${lastContract}`;
+          } catch (error) {
+              console.error('Error loading last contract:', error);
+          }
+      }
+
+        /* developer function not used in UI */
+        async function getUserContracts() {
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const userContracts = await factoryContract.methods.getUserContracts(account).call();
+            console.log('User Contracts:', userContracts);
+
+          } catch (error) {
+            console.error('Error fetching user contracts:', error);
+          }
+        }
+
+        /* developer function not used in UI */
+        async function getAllUsers() {
+          try {
+            const allUsers = await factoryContract.methods.getAllUsers().call();
+            console.log('All Users:', allUsers);
+
+          } catch (error) {
+            console.error('Error fetching all users:', error);
+          }
+        }
+
+        /* developer function not used in UI */
+        async function getAllUserContracts() {
+          try {
+            const allUserContracts = await factoryContract.methods.getAllUserContracts().call();
+            console.log('All User Contracts:', allUserContracts);
+
+          } catch (error) {
+            console.error('Error fetching all user contracts:', error);
+          }
+        }
+
+        /* developer function not used in UI */
+        async function getAllUserContractsMap() {
+          try {
+            const allUsers = await factoryContract.methods.getAllUsers().call();
+            const allUserContracts = await factoryContract.methods.getAllUserContracts().call();
+
+            const allUserContractsMap = {};
+            allUsers.forEach((user, index) => {
+                allUserContractsMap[user] = allUserContracts[index];
+            });
+            console.log('allUserContractsMap:', allUserContractsMap);
+
+            // Display the retrieved user contracts
+            // TODO
+          } catch (error) {
+            console.error('Error fetching all user contracts map:', error);
+          }
+        }
+
+        async function callMultiSend() {
+          try {
+            const recipientAddresses = document.getElementById('recipientAddresses').value.split(',');
+            const amounts = document.getElementById('amounts').value.split(',');
+
+            const gasEstimation = await estimateGas(CONTRACT_ADDRESS, CONTRACT, 'multiSend', recipientAddresses, amounts);
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const transactionObject = {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              gas: gasEstimation,
+              data: CONTRACT.methods.multiSend(recipientAddresses, amounts).encodeABI(),
+            };
+
+            await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [transactionObject],
+            });
+
+            console.log('multiSend transaction sent.');
+          } catch (error) {
+            console.error('Error sending multiSend transaction:', error);
+          }
+        }
+
+        async function callUpsertClaim() {
+          try {
+            const claimerAddress = document.getElementById('upsertClaimerAddress').value;
+            const claimableAmount = document.getElementById('upsertClaimableAmount').value;
+
+            const gasEstimation = await estimateGas(CONTRACT_ADDRESS, CONTRACT, 'upsertClaim', claimerAddress, claimableAmount);
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+            console.log(account);
+
+            const transactionObject = {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              gas: gasEstimation,
+              data: CONTRACT.methods.upsertClaim(claimerAddress, claimableAmount).encodeABI(),
+            };
+            console.log(transactionObject);
+
+            await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [transactionObject],
+            });
+
+            console.log('upsertClaim transaction sent.');
+          } catch (error) {
+            console.error('Error sending upsertClaim transaction:', error);
+          }
+        }
+
+        async function callWithdrawBalance() {
+          try {
+            const gasEstimation = await estimateGas(CONTRACT_ADDRESS, CONTRACT, 'withdrawBalance');
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const transactionObject = {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              gas: gasEstimation,
+              data: CONTRACT.methods.withdrawBalance().encodeABI(),
+            };
+
+            await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [transactionObject],
+            });
+
+            console.log('withdrawBalance transaction sent.');
+          } catch (error) {
+            console.error('Error sending withdrawBalance transaction:', error);
+          }
+        }
+
+        async function callWithdrawClaim() {
+          try {
+            const gasEstimation = await estimateGas(CONTRACT_ADDRESS, CONTRACT, 'withdrawClaim');
+
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const transactionObject = {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              gas: gasEstimation,
+              data: CONTRACT.methods.withdrawClaim().encodeABI(),
+            };
+
+            await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [transactionObject],
+            });
+
+            console.log('withdrawClaim transaction sent.');
+          } catch (error) {
+            console.error('Error sending withdrawClaim transaction:', error);
+          }
+        }
+
+        async function loadAllClaims() {
+          try {
+            const claims = await CONTRACT.methods.getAllClaims().call();
+
+            console.log('Claims:', claims);
+
+            // Construct HTML table to display claims
+            let html = '<table class="table text-center">';
+            html += '<thead><tr><th scope="col" class="col-6">Address</th><th scope="col" class="col-6">Claimable Amount</th></tr></thead>';
+            html += '<tbody>';
+
+            for (let i = 0; i < claims[0].length; i++) {
+              let address = claims[0][i];
+
+              let ethAmount = web3.utils.fromWei(claims[1][i], 'ether');
+              let ethAmountStr = ethAmount == 0 ? 0 : ethAmount;
+
+              html += '<tr>';
+              html += `<td>${truncateAddress(address)}</td>`;
+              html += `<td>${ethAmountStr} ETH</td>`;
+              html += '</tr>';
+            }
+
+            html += '</tbody></table>';
+
+            document.getElementById('claimsTable').innerHTML = html; // Display claims in the div
+            document.getElementById('claimsTableContainer').style.display = 'block'; // Show the table container
+          } catch (error) {
+            console.error('Error fetching claims:', error);
+          }
+        }
+
+        // Define the function to call getClaim
+        async function callGetClaim() {
+          try {
+            const claimerAddress = document.getElementById('loadClaimerAddress').value;
+
+            console.log('claimerAddress', claimerAddress);
+
+            // Call the getClaim function from the contract
+            const claimAmount = await CONTRACT.methods.getClaim(claimerAddress).call();
+
+            // Display the result
+            let ethAmount = web3.utils.fromWei(claimAmount, 'ether');
+            let ethAmountStr = ethAmount == 0 ? 0 : ethAmount;
+            document.getElementById('claimResult').innerHTML = `Claimable Amount: ${ethAmountStr} ETH`;
+          } catch (error) {
+            console.error('Error getting claim:', error);
+          }
+        }
+
+        async function getContractBalance() {
+          try {
+            const balance = await CONTRACT.methods.getContractBalance().call();
+            console.log('Contract balance:', balance);
+            let ethAmount = web3.utils.fromWei(balance, 'ether');
+            let ethAmountStr = ethAmount == 0 ? 0 : ethAmount;
+            // Update the UI to display the contract balance
+            document.getElementById('contractBalance').innerHTML = `Contract Balance: ${ethAmountStr} ETH`;
+          } catch (error) {
+            console.error('Error getting contract balance:', error);
+          }
+        }
+
+        async function getOwner() {
+          try {
+            // Call the getOwner() function from the contract
+            const owner = await CONTRACT.methods.getOwner().call();
+
+            // Display the owner address on the HTML page
+            document.getElementById('ownerAddress').innerHTML = `Owner Address: ${owner}`;
+          } catch (error) {
+            console.error('Error getting owner:', error);
+          }
+        }
+
+        async function estimateGas(_contractAddress, _contract, functionName, ...functionArguments) {
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            const transactionObject = {
+              from: account,
+              to: _contractAddress,
+              data: _contract.methods[functionName](...functionArguments).encodeABI(),
+            };
+
+            const gasEstimation = await _contract.methods[functionName](...functionArguments).estimateGas(transactionObject);
+
+            console.log(`Estimated gas (raw) for ${functionName}:`, gasEstimation);
+            console.log(`Estimated gas (Number) for ${functionName}:`, Number(gasEstimation));
+            return Number(gasEstimation);
+          } catch (error) {
+            console.error(`Error estimating gas for ${functionName}:`, error);
+            throw error;
+          }
+        }
+
+        function truncateAddress(address) {
+          return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
+        }
+      </script>
+    </div>
+  </div>
+</body>
+</html>
