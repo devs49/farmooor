@@ -68,10 +68,16 @@
       <h3>deployContract</h3>
       <button class="btn btn-primary mb-5" type="button" onclick="callDeployContract()">Submit</button>
 
-      <h3>loadContract</h3>
+      <h3>loadLastContract</h3>
       <button class="btn btn-primary mb-3" type="button" onclick="loadLastContract()">Load</button>
       <!-- Add a container to display the last contract -->
       <div id="lastContractContainer" class="mb-5"></div>
+
+      <h3>loadContract</h3>
+      <input id="contractAddressInput" class="form-control text-center mb-3" type="text" required>
+      <button class="btn btn-primary mb-3" type="button" onclick="loadSpecificContract()">Load</button>
+      <!-- Add a container to display the loaded contract -->
+      <div id="loadedContractContainer" class="mb-5"></div>
 
       <h3>getOwner</h3>
       <button class="btn btn-primary mb-3" onclick="getOwner()">Show</button>
@@ -270,7 +276,7 @@
       "type": "function"
     }
         ];
-        const factoryContractAddress = 'TODO';
+        const factoryContractAddress = '0x4E6fb69cEae9125F70852c09687956b123B0C0c0'; // TODO: Change factory if fork
         const factoryContract = new web3.eth.Contract(factoryContractAbi, factoryContractAddress);
 
         const contractAbi = [
@@ -562,7 +568,29 @@
           } catch (error) {
               console.error('Error loading last contract:', error);
           }
-      }
+        }
+
+        async function loadSpecificContract() {
+          try {
+              // Get the contract address from the input field
+              const contractAddress = document.getElementById('contractAddressInput').value;
+
+              // Validate contract address format (optional)
+              if (!web3.utils.isAddress(contractAddress)) {
+                  throw new Error('Invalid contract address');
+              }
+
+              // Initialize the contract instance with the provided address
+              CONTRACT_ADDRESS = contractAddress;
+              CONTRACT = new web3.eth.Contract(contractAbi, CONTRACT_ADDRESS);
+
+              // Display the loaded contract address
+              document.getElementById('loadedContractContainer').innerHTML = `Loaded Contract: ${contractAddress}`;
+          } catch (error) {
+              console.error('Error loading specific contract:', error);
+          }
+        }
+
 
         /* developer function not used in UI */
         async function getUserContracts() {
@@ -612,8 +640,6 @@
             });
             console.log('allUserContractsMap:', allUserContractsMap);
 
-            // Display the retrieved user contracts
-            // TODO
           } catch (error) {
             console.error('Error fetching all user contracts map:', error);
           }
